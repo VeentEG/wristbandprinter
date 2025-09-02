@@ -277,6 +277,12 @@
                 <input type="text" id="qrValue" placeholder="Enter value to replace {qrcode} and print" style="width: 250px;" onkeypress="handleQRValueKeyPress(event)">
                 <button class="btn-primary" onclick="replaceAndPrint()">Replace & Print</button>
             </div>
+            
+            <div class="control-group" style="margin-top: 15px; border-top: 1px solid #ddd; padding-top: 15px;">
+                <label for="uploadFile">Upload Design:</label>
+                <input type="file" id="uploadFile" accept=".json" onchange="uploadDesign(event)" style="margin-bottom: 10px;">
+                <small style="color: #666;">Upload a JSON file to load a saved design</small>
+            </div>
         </div>
         
         <div class="canvas-container">
@@ -882,8 +888,13 @@
             };
             
             const dataStr = JSON.stringify(saveConfig, null, 2);
-            const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
             
+            // Always save to localStorage first
+            localStorage.setItem('wristband_design', dataStr);
+            console.log('Design saved to localStorage');
+            
+            // Then initiate download
+            const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
             const exportFileDefaultName = 'wristband_design.json';
             
             const linkElement = document.createElement('a');
@@ -891,74 +902,82 @@
             linkElement.setAttribute('download', exportFileDefaultName);
             linkElement.click();
             
-            // Also try to save to local storage as backup
-            localStorage.setItem('wristband_design', dataStr);
-            
-            showStatus('Design saved successfully!', 'success');
+            showStatus('Design saved to localStorage and downloaded!', 'success');
         }
 
         function loadDesign() {
-            // Try to load from local storage first
+            // Always try to load from localStorage on startup
             const savedDesign = localStorage.getItem('wristband_design');
             
             if (savedDesign) {
-                try {
-                    const loadedConfig = JSON.parse(savedDesign);
-                    
-                    // Merge loaded config with current config
-                    config.imageUrl = loadedConfig.imageUrl || '';
-                    
-                    // Handle different measurement formats
-                    if (loadedConfig.widthMM !== undefined) {
-                        // New mm format
-                        config.widthMM = loadedConfig.widthMM || 159;
-                        config.heightMM = loadedConfig.heightMM || 53;
-                    } else if (loadedConfig.widthInches !== undefined) {
-                        // Old inches format - convert to mm
-                        config.widthMM = Math.round((loadedConfig.widthInches || 6.25) * 25.4);
-                        config.heightMM = Math.round((loadedConfig.heightInches || 2.08) * 25.4);
-                    } else {
-                        // Legacy pixel format - assume 96 DPI and convert to mm
-                        const widthInches = (loadedConfig.width || 600) / 96;
-                        const heightInches = (loadedConfig.height || 200) / 96;
-                        config.widthMM = Math.round(widthInches * 25.4);
-                        config.heightMM = Math.round(heightInches * 25.4);
-                    }
-                    
-                    config.textboxes = loadedConfig.textboxes || [];
-                    
-                    // Handle image positioning and dimensions
-                    if (loadedConfig.image) {
-                        // New format with complete image object
-                        Object.assign(config.image, loadedConfig.image);
-                        // Don't restore loaded state - image will be reloaded
-                        config.image.loaded = false;
-                        config.image.element = null;
-                    } else if (loadedConfig.imageX !== undefined) {
-                        // Legacy format - convert to new format
-                        config.image.x = loadedConfig.imageX;
-                        config.image.y = loadedConfig.imageY;
-                        config.image.scale = loadedConfig.imageScale || 1;
-                        // Will set dimensions when image loads
-                        config.image.width = 0;
-                        config.image.height = 0;
-                        config.image.loaded = false;
-                        config.image.element = null;
-                    }
-                    
-                    // Update UI
-                    document.getElementById('imageUrl').value = config.imageUrl;
-                    document.getElementById('width').value = config.widthMM;
-                    document.getElementById('height').value = config.heightMM;
-                    
-                    updateDesignArea();
-                    updateBackgroundImage();
-                    
-                    showStatus('Design loaded successfully!', 'success');
-                } catch (error) {
-                    console.error('Error loading design:', error);
-                    showStatus('Error loading saved design', 'error');
+                loadDesignFromJSON(savedDesign, 'localStorage');
+            }
+        }
+        
+        function loadDesignFromJSON(jsonString, source = 'file') {
+            try {
+                const loadedConfig = JSON.parse(jsonString);
+                
+                // Merge loaded config with current config
+                config.imageUrl = loadedConfig.imageUrl || '';
+                
+                // Handle different measurement formats
+                if (loadedConfig.widthMM !== undefined) {
+                    // New mm format
+                    config.widthMM = loadedConfig.widthMM || 159;
+                    config.heightMM = loadedConfig.heightMM || 53;
+                } else if (loadedConfig.widthInches !== undefined) {
+                    // Old inches format - convert to mm
+                    config.widthMM = Math.round((loadedConfig.widthInches || 6.25) * 25.4);
+                    config.heightMM = Math.round((loadedConfig.heightInches || 2.08) * 25.4);
+                } else {
+                    // Legacy pixel format - assume 96 DPI and convert to mm
+                    const widthInches = (loadedConfig.width || 600) / 96;
+                    const heightInches = (loadedConfig.height || 200) / 96;
+                    config.widthMM = Math.round(widthInches * 25.4);
+                    config.heightMM = Math.round(heightInches * 25.4);
                 }
+                
+                config.textboxes = loadedConfig.textboxes || [];
+                
+                // Handle image positioning and dimensions
+                if (loadedConfig.image) {
+                    // New format with complete image object
+                    Object.assign(config.image, loadedConfig.image);
+                    // Don't restore loaded state - image will be reloaded
+                    config.image.loaded = false;
+                    config.image.element = null;
+                } else if (loadedConfig.imageX !== undefined) {
+                    // Legacy format - convert to new format
+                    config.image.x = loadedConfig.imageX;
+                    config.image.y = loadedConfig.imageY;
+                    config.image.scale = loadedConfig.imageScale || 1;
+                    // Will set dimensions when image loads
+                    config.image.width = 0;
+                    config.image.height = 0;
+                    config.image.loaded = false;
+                    config.image.element = null;
+                }
+                
+                // Update UI
+                document.getElementById('imageUrl').value = config.imageUrl;
+                document.getElementById('width').value = config.widthMM;
+                document.getElementById('height').value = config.heightMM;
+                
+                updateDesignArea();
+                updateBackgroundImage();
+                
+                if (source === 'localStorage') {
+                    console.log('Design loaded from localStorage on startup');
+                } else {
+                    showStatus(`Design loaded from ${source}!`, 'success');
+                    // Save uploaded design to localStorage
+                    localStorage.setItem('wristband_design', jsonString);
+                    console.log('Uploaded design saved to localStorage');
+                }
+            } catch (error) {
+                console.error('Error loading design:', error);
+                showStatus('Error loading design - invalid JSON format', 'error');
             }
         }
 
@@ -1115,6 +1134,33 @@
                 
                 showStatus('Print completed - {qrcode} placeholders restored', 'success');
             }, 500);
+        }
+        
+        function uploadDesign(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            
+            if (file.type !== 'application/json' && !file.name.endsWith('.json')) {
+                showStatus('Please select a valid JSON file', 'error');
+                return;
+            }
+            
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const jsonContent = e.target.result;
+                    loadDesignFromJSON(jsonContent, 'uploaded file');
+                } catch (error) {
+                    console.error('Error reading file:', error);
+                    showStatus('Error reading uploaded file', 'error');
+                }
+            };
+            
+            reader.onerror = function() {
+                showStatus('Error reading file', 'error');
+            };
+            
+            reader.readAsText(file);
         }
         
         // Initialize when page loads
