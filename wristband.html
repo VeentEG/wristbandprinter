@@ -278,6 +278,15 @@
                 <button class="btn-primary" onclick="replaceAndPrint()">Replace & Print</button>
             </div>
             
+            <div id="textControls" class="control-group" style="margin-top: 15px; border-top: 1px solid #ddd; padding-top: 15px; display: none;">
+                <label>Text Alignment:</label>
+                <div style="display: flex; gap: 10px; margin-top: 5px;">
+                    <button class="btn-primary" onclick="setTextAlignment('left')" id="alignLeft">Left</button>
+                    <button class="btn-primary" onclick="setTextAlignment('center')" id="alignCenter">Center</button>
+                    <button class="btn-primary" onclick="setTextAlignment('right')" id="alignRight">Right</button>
+                </div>
+            </div>
+            
             <div class="control-group" style="margin-top: 15px; border-top: 1px solid #ddd; padding-top: 15px;">
                 <label for="uploadFile">Upload Design:</label>
                 <input type="file" id="uploadFile" accept=".json" onchange="uploadDesign(event)" style="margin-bottom: 10px;">
@@ -325,9 +334,12 @@
         let canvas, ctx;
         let isDragging = false;
         let isResizing = false;
+        let isResizingText = false;
         let dragStart = { x: 0, y: 0 };
         let resizeHandle = null;
+        let textResizeHandle = null;
         let originalImageSize = { width: 0, height: 0 };
+        let originalTextSize = { width: 0, height: 0 };
         let selectedElement = null;
         let canvasScale = 1; // Track the display scale of canvas
 
@@ -464,29 +476,63 @@
             ctx.save();
             ctx.font = `${textbox.fontSize || 16}px Arial`;
             ctx.fillStyle = textbox.color || '#000000';
-            ctx.textAlign = 'left';
+            ctx.textAlign = textbox.textAlign || 'left';
             ctx.textBaseline = 'top';
             
-            const textWidth = ctx.measureText(textbox.text).width;
-            const textHeight = textbox.fontSize || 16;
+            const boxWidth = textbox.width || 150;
+            const boxHeight = textbox.height || 40;
             
-            // Draw background for text if selected
+            // Calculate text position based on alignment
+            let textX = textbox.x;
+            if (textbox.textAlign === 'center') {
+                textX = textbox.x + boxWidth / 2;
+            } else if (textbox.textAlign === 'right') {
+                textX = textbox.x + boxWidth;
+            }
+            
+            // Draw background box if selected
             if (isSelected) {
                 ctx.fillStyle = 'rgba(0, 123, 255, 0.1)';
-                ctx.fillRect(textbox.x - 5, textbox.y - 5, textWidth + 10, textHeight + 10);
+                ctx.fillRect(textbox.x, textbox.y, boxWidth, boxHeight);
                 
                 ctx.strokeStyle = '#007bff';
                 ctx.lineWidth = 2;
                 ctx.setLineDash([3, 3]);
-                ctx.strokeRect(textbox.x - 5, textbox.y - 5, textWidth + 10, textHeight + 10);
+                ctx.strokeRect(textbox.x, textbox.y, boxWidth, boxHeight);
                 ctx.setLineDash([]);
+                
+                // Draw resize handles
+                drawTextboxHandles(textbox);
             }
             
             // Draw text
             ctx.fillStyle = textbox.color || '#000000';
-            ctx.fillText(textbox.text, textbox.x, textbox.y);
+            ctx.fillText(textbox.text, textX, textbox.y + 5); // Add small padding from top
             
             ctx.restore();
+        }
+        
+        function drawTextboxHandles(textbox) {
+            const handleSize = 8;
+            const boxWidth = textbox.width || 150;
+            const boxHeight = textbox.height || 40;
+            
+            ctx.fillStyle = '#007bff';
+            ctx.strokeStyle = '#ffffff';
+            ctx.lineWidth = 1;
+            
+            // Corner resize handles
+            const handles = [
+                { x: textbox.x + boxWidth - handleSize, y: textbox.y + boxHeight - handleSize, corner: 'se' }
+            ];
+            
+            handles.forEach(handle => {
+                ctx.fillRect(handle.x, handle.y, handleSize, handleSize);
+                ctx.strokeRect(handle.x, handle.y, handleSize, handleSize);
+            });
+            
+            // Store handle positions for hit detection
+            textbox.handles = handles;
         }
 
         function updateDesign() {
@@ -608,7 +654,21 @@
             
             dragStart = { x, y };
             
-            // Check if clicking on image resize handle first
+            // Check if clicking on textbox resize handle first
+            if (selectedElement && selectedElement.startsWith('text-')) {
+                const handle = getTextboxResizeHandle(x, y);
+                if (handle) {
+                    const textIndex = parseInt(selectedElement.split('-')[1]);
+                    const textbox = config.textboxes[textIndex];
+                    isResizingText = true;
+                    textResizeHandle = handle;
+                    originalTextSize = { width: textbox.width || 150, height: textbox.height || 40 };
+                    canvas.style.cursor = 'se-resize';
+                    return;
+                }
+            }
+            
+            // Check if clicking on image resize handle
             if (config.image.loaded && selectedElement === 'image') {
                 const handle = getResizeHandle(x, y);
                 if (handle) {
@@ -651,6 +711,27 @@
             const rect = canvas.getBoundingClientRect();
             const x = (e.clientX - rect.left) / canvasScale;
             const y = (e.clientY - rect.top) / canvasScale;
+            
+            if (isResizingText && textResizeHandle) {
+                const deltaX = x - dragStart.x;
+                const deltaY = y - dragStart.y;
+                
+                const textIndex = parseInt(selectedElement.split('-')[1]);
+                const textbox = config.textboxes[textIndex];
+                
+                // Calculate new dimensions
+                const newWidth = Math.max(50, originalTextSize.width + deltaX);
+                const newHeight = Math.max(20, originalTextSize.height + deltaY);
+                
+                textbox.width = newWidth;
+                textbox.height = newHeight;
+                
+                // Auto-scale font to fit text box
+                autoScaleFont(textbox);
+                
+                drawCanvas();
+                return;
+            }
             
             if (isResizing && resizeHandle) {
                 const deltaX = x - dragStart.x;
@@ -727,7 +808,16 @@
             }
             
             // Update cursor based on hover
-            if (config.image.loaded && selectedElement === 'image') {
+            if (selectedElement && selectedElement.startsWith('text-')) {
+                const handle = getTextboxResizeHandle(x, y);
+                if (handle) {
+                    canvas.style.cursor = 'se-resize';
+                } else if (getTextAtPoint(x, y) !== -1) {
+                    canvas.style.cursor = 'move';
+                } else {
+                    canvas.style.cursor = 'default';
+                }
+            } else if (config.image.loaded && selectedElement === 'image') {
                 const handle = getResizeHandle(x, y);
                 if (handle) {
                     canvas.style.cursor = handle.cursor;
@@ -748,8 +838,34 @@
         function handleCanvasMouseUp() {
             isDragging = false;
             isResizing = false;
+            isResizingText = false;
             resizeHandle = null;
+            textResizeHandle = null;
             canvas.style.cursor = 'default';
+        }
+        
+        function autoScaleFont(textbox) {
+            if (!textbox || !textbox.text) return;
+            
+            const maxWidth = textbox.width - 10; // Leave some padding
+            const maxHeight = textbox.height - 10;
+            
+            // Start with a reasonable font size
+            let fontSize = Math.min(maxHeight * 0.8, 24);
+            
+            // Test if text fits horizontally
+            ctx.font = `${fontSize}px Arial`;
+            let textWidth = ctx.measureText(textbox.text).width;
+            
+            // Scale down if text is too wide
+            if (textWidth > maxWidth) {
+                fontSize = Math.floor((maxWidth / textWidth) * fontSize);
+            }
+            
+            // Ensure minimum font size
+            fontSize = Math.max(8, Math.min(32, fontSize));
+            
+            textbox.fontSize = fontSize;
         }
         
         function handleCanvasWheel(e) {
@@ -804,16 +920,32 @@
                 const textbox = config.textboxes[i];
                 if (!textbox || !textbox.text) continue;
                 
-                ctx.font = `${textbox.fontSize || 16}px Arial`;
-                const textWidth = ctx.measureText(textbox.text).width;
-                const textHeight = textbox.fontSize || 16;
+                const boxWidth = textbox.width || 150;
+                const boxHeight = textbox.height || 40;
                 
-                if (x >= textbox.x - 5 && x <= textbox.x + textWidth + 5 &&
-                    y >= textbox.y - 5 && y <= textbox.y + textHeight + 5) {
+                if (x >= textbox.x && x <= textbox.x + boxWidth &&
+                    y >= textbox.y && y <= textbox.y + boxHeight) {
                     return i;
                 }
             }
             return -1;
+        }
+        
+        function getTextboxResizeHandle(x, y) {
+            if (!selectedElement || !selectedElement.startsWith('text-')) return null;
+            
+            const textIndex = parseInt(selectedElement.split('-')[1]);
+            const textbox = config.textboxes[textIndex];
+            if (!textbox || !textbox.handles) return null;
+            
+            const handleSize = 8;
+            for (let handle of textbox.handles) {
+                if (x >= handle.x && x <= handle.x + handleSize &&
+                    y >= handle.y && y <= handle.y + handleSize) {
+                    return handle;
+                }
+            }
+            return null;
         }
         
         function addTextbox() {
@@ -822,8 +954,11 @@
                 text: 'Sample Text',
                 x: 50,
                 y: 50,
+                width: 150,
+                height: 40,
                 fontSize: 16,
-                color: '#000000'
+                color: '#000000',
+                textAlign: 'left'
             };
             
             config.textboxes.push(newTextbox);
@@ -839,6 +974,8 @@
             const newText = prompt('Enter new text:', textbox.text);
             if (newText !== null && newText !== textbox.text) {
                 textbox.text = newText;
+                // Auto-scale font to fit the textbox
+                autoScaleFont(textbox);
                 drawCanvas();
             }
         }
@@ -858,10 +995,48 @@
         
         function updateDeleteButton() {
             const deleteBtn = document.getElementById('deleteBtn');
+            const textControls = document.getElementById('textControls');
+            
             if (selectedElement && selectedElement.startsWith('text-')) {
                 deleteBtn.style.display = 'inline-block';
+                textControls.style.display = 'block';
+                
+                // Update alignment button states
+                const textIndex = parseInt(selectedElement.split('-')[1]);
+                const textbox = config.textboxes[textIndex];
+                if (textbox) {
+                    updateAlignmentButtons(textbox.textAlign || 'left');
+                }
             } else {
                 deleteBtn.style.display = 'none';
+                textControls.style.display = 'none';
+            }
+        }
+        
+        function updateAlignmentButtons(activeAlign) {
+            const buttons = ['alignLeft', 'alignCenter', 'alignRight'];
+            const alignments = ['left', 'center', 'right'];
+            
+            buttons.forEach((buttonId, index) => {
+                const button = document.getElementById(buttonId);
+                if (alignments[index] === activeAlign) {
+                    button.style.backgroundColor = '#28a745';
+                } else {
+                    button.style.backgroundColor = '#007bff';
+                }
+            });
+        }
+        
+        function setTextAlignment(alignment) {
+            if (!selectedElement || !selectedElement.startsWith('text-')) return;
+            
+            const textIndex = parseInt(selectedElement.split('-')[1]);
+            const textbox = config.textboxes[textIndex];
+            if (textbox) {
+                textbox.textAlign = alignment;
+                updateAlignmentButtons(alignment);
+                drawCanvas();
+                showStatus(`Text alignment set to ${alignment}`, 'success');
             }
         }
 
