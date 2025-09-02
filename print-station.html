@@ -1,0 +1,888 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Wristband Print Station</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden;
+        }
+
+        .poster-container {
+            background: white;
+            border-radius: 15px;
+            padding: 40px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            text-align: center;
+            max-width: 600px;
+        }
+
+        .poster-title {
+            font-size: 2.5em;
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 20px;
+        }
+
+        .sample-wristband {
+            background: #f8f9fa;
+            border: 3px dashed #007bff;
+            border-radius: 10px;
+            padding: 20px;
+            margin: 30px 0;
+            position: relative;
+        }
+
+        .sample-text {
+            font-size: 1.5em;
+            color: #007bff;
+            font-weight: bold;
+        }
+
+        .instructions {
+            font-size: 1.2em;
+            color: #666;
+            margin-top: 20px;
+            line-height: 1.6;
+        }
+
+        .template-preview {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.9);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+
+        .preview-content {
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            text-align: center;
+            max-width: 90%;
+            max-height: 90%;
+            overflow: auto;
+        }
+
+        .preview-title {
+            font-size: 1.5em;
+            font-weight: bold;
+            margin-bottom: 20px;
+            color: #333;
+        }
+
+        .preview-canvas-container {
+            border: 2px dashed #ccc;
+            background: #f9f9fa;
+            margin: 20px 0;
+            display: inline-block;
+            position: relative;
+        }
+
+        .preview-canvas {
+            display: block;
+            max-width: 100%;
+            height: auto;
+        }
+
+        .preview-info {
+            margin-top: 15px;
+            color: #666;
+            font-size: 0.9em;
+        }
+
+        .preview-close {
+            margin-top: 20px;
+            padding: 10px 20px;
+            background: #007bff;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+
+        .preview-close:hover {
+            background: #0056b3;
+        }
+
+        .typing-indicator {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: rgba(0, 123, 255, 0.1);
+            color: #007bff;
+            padding: 10px 20px;
+            border-radius: 25px;
+            font-size: 1.1em;
+            display: none;
+            animation: pulse 1s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 0.7; }
+            50% { opacity: 1; }
+        }
+
+        .current-input {
+            position: fixed;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(255, 255, 255, 0.95);
+            padding: 15px 30px;
+            border-radius: 25px;
+            font-size: 1.3em;
+            font-weight: bold;
+            color: #333;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+            display: none;
+            min-width: 200px;
+        }
+
+        .hidden-menu {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.9);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+
+        .menu-content {
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            text-align: center;
+            max-width: 400px;
+            width: 90%;
+        }
+
+        .menu-title {
+            font-size: 1.5em;
+            font-weight: bold;
+            margin-bottom: 20px;
+            color: #333;
+        }
+
+        .upload-area {
+            border: 2px dashed #ccc;
+            padding: 30px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .upload-area:hover {
+            border-color: #007bff;
+            background: #f8f9fa;
+        }
+
+        .upload-area.dragover {
+            border-color: #007bff;
+            background: #e3f2fd;
+        }
+
+        #fileInput {
+            display: none;
+        }
+
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 0 5px;
+            transition: background-color 0.3s;
+        }
+
+        .btn-primary {
+            background-color: #007bff;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background-color: #0056b3;
+        }
+
+        .btn-secondary {
+            background-color: #6c757d;
+            color: white;
+        }
+
+        .btn-secondary:hover {
+            background-color: #545b62;
+        }
+
+        .status {
+            margin-top: 15px;
+            padding: 10px;
+            border-radius: 6px;
+            display: none;
+        }
+
+        .status.success {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .status.error {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
+        /* Print area (hidden) */
+        .print-area {
+            display: none;
+        }
+
+        @media print {
+            @page {
+                margin: 0.5in;
+                size: letter;
+            }
+            
+            body {
+                margin: 0;
+                padding: 0;
+                background: white !important;
+            }
+            
+            body * {
+                visibility: hidden;
+            }
+            
+            .print-area, .print-area * {
+                visibility: visible !important;
+            }
+            
+            .print-area {
+                position: fixed;
+                left: 50%;
+                top: 50%;
+                transform: translate(-50%, -50%) rotate(-90deg);
+                transform-origin: center;
+                background: white !important;
+                z-index: 9999;
+            }
+            
+            .print-area img {
+                display: block;
+                -webkit-print-color-adjust: exact;
+                color-adjust: exact;
+                print-color-adjust: exact;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Main poster view -->
+    <div class="poster-container">
+        <div class="poster-title">🏷️ Wristband Print Station</div>
+        <div class="sample-wristband">
+            <div class="sample-text" id="sampleText">Sample: {qrcode}</div>
+        </div>
+        <div class="instructions">
+            Simply start typing your text<br>
+            Press <strong>Enter</strong> to print<br>
+            <small style="color: #999;">Press F1 for template menu • Press F2 for template preview</small>
+        </div>
+    </div>
+
+    <!-- Typing indicator -->
+    <div class="typing-indicator" id="typingIndicator">
+        Typing...
+    </div>
+
+    <!-- Current input display -->
+    <div class="current-input" id="currentInput"></div>
+
+    <!-- Hidden menu -->
+    <div class="hidden-menu" id="hiddenMenu">
+        <div class="menu-content">
+            <div class="menu-title">Template Management</div>
+            <div class="upload-area" id="uploadArea" onclick="document.getElementById('fileInput').click()">
+                <div>📁 Click to upload template JSON</div>
+                <div style="font-size: 0.9em; color: #666; margin-top: 10px;">
+                    Or drag and drop a file here
+                </div>
+            </div>
+            <input type="file" id="fileInput" accept=".json">
+            <div style="margin-top: 20px;">
+                <button class="btn btn-primary" onclick="closeMenu()">Close</button>
+                <button class="btn btn-secondary" onclick="clearTemplate()">Clear Template</button>
+            </div>
+            <div class="status" id="menuStatus"></div>
+        </div>
+    </div>
+
+    <!-- Template Preview -->
+    <div class="template-preview" id="templatePreview">
+        <div class="preview-content">
+            <div class="preview-title">📋 Template Preview</div>
+            <div class="preview-canvas-container">
+                <canvas id="previewCanvas" class="preview-canvas" width="600" height="200"></canvas>
+            </div>
+            <div class="preview-info" id="previewInfo">
+                <div>Dimensions: <span id="previewDimensions">-</span></div>
+                <div>Text boxes: <span id="previewTextboxes">-</span></div>
+                <div>Image: <span id="previewImage">-</span></div>
+            </div>
+            <button class="preview-close" onclick="closePreview()">Close Preview (Esc)</button>
+        </div>
+    </div>
+
+    <!-- Hidden print area -->
+    <div class="print-area" id="printArea"></div>
+
+    <script>
+        let currentText = '';
+        let isTyping = false;
+        let config = null;
+
+        // Initialize the application
+        function init() {
+            loadTemplate();
+            setupEventListeners();
+            console.log('Print Station initialized');
+        }
+
+        function setupEventListeners() {
+            // Global keyboard listener
+            document.addEventListener('keydown', handleKeyPress);
+            
+            // File input listener
+            document.getElementById('fileInput').addEventListener('change', handleFileUpload);
+            
+            // Drag and drop listeners
+            const uploadArea = document.getElementById('uploadArea');
+            uploadArea.addEventListener('dragover', handleDragOver);
+            uploadArea.addEventListener('dragleave', handleDragLeave);
+            uploadArea.addEventListener('drop', handleFileDrop);
+        }
+
+        function handleKeyPress(event) {
+            // F1 key - show/hide menu
+            if (event.key === 'F1') {
+                event.preventDefault();
+                toggleMenu();
+                return;
+            }
+
+            // F2 key - show/hide template preview
+            if (event.key === 'F2') {
+                event.preventDefault();
+                togglePreview();
+                return;
+            }
+
+            // Escape key - close menu, preview, or clear current text
+            if (event.key === 'Escape') {
+                if (document.getElementById('hiddenMenu').style.display !== 'none') {
+                    closeMenu();
+                } else if (document.getElementById('templatePreview').style.display !== 'none') {
+                    closePreview();
+                } else {
+                    clearCurrentText();
+                }
+                return;
+            }
+
+            // Don't process keys if menu or preview is open
+            if (document.getElementById('hiddenMenu').style.display !== 'none' || 
+                document.getElementById('templatePreview').style.display !== 'none') {
+                return;
+            }
+
+            // Enter key - print
+            if (event.key === 'Enter') {
+                if (currentText.trim()) {
+                    printWithText(currentText.trim());
+                    clearCurrentText();
+                }
+                return;
+            }
+
+            // Backspace
+            if (event.key === 'Backspace') {
+                currentText = currentText.slice(0, -1);
+                updateDisplay();
+                return;
+            }
+
+            // Regular characters
+            if (event.key.length === 1 && !event.ctrlKey && !event.altKey) {
+                currentText += event.key;
+                updateDisplay();
+                showTyping();
+            }
+        }
+
+        function updateDisplay() {
+            const currentInputEl = document.getElementById('currentInput');
+            
+            if (currentText) {
+                currentInputEl.textContent = currentText;
+                currentInputEl.style.display = 'block';
+                
+                // Update sample text
+                const sampleTextEl = document.getElementById('sampleText');
+                if (config && config.textboxes && config.textboxes[0]) {
+                    const sampleTemplate = config.textboxes[0].text;
+                    const sampleText = sampleTemplate.replace(/{qrcode}/g, currentText || '{qrcode}');
+                    sampleTextEl.textContent = `Preview: ${sampleText}`;
+                }
+            } else {
+                currentInputEl.style.display = 'none';
+                // Reset sample text
+                const sampleTextEl = document.getElementById('sampleText');
+                if (config && config.textboxes && config.textboxes[0]) {
+                    sampleTextEl.textContent = `Sample: ${config.textboxes[0].text}`;
+                } else {
+                    sampleTextEl.textContent = 'Sample: {qrcode}';
+                }
+            }
+        }
+
+        function showTyping() {
+            const indicator = document.getElementById('typingIndicator');
+            indicator.style.display = 'block';
+            isTyping = true;
+            
+            // Hide after 1 second of inactivity
+            setTimeout(() => {
+                if (isTyping) {
+                    indicator.style.display = 'none';
+                    isTyping = false;
+                }
+            }, 1000);
+        }
+
+        function clearCurrentText() {
+            currentText = '';
+            updateDisplay();
+        }
+
+        function loadTemplate() {
+            const savedTemplate = localStorage.getItem('wristband_design');
+            if (savedTemplate) {
+                try {
+                    config = JSON.parse(savedTemplate);
+                    console.log('Template loaded from localStorage');
+                    updateSampleDisplay();
+                } catch (error) {
+                    console.error('Error loading template:', error);
+                    config = null;
+                }
+            }
+        }
+
+        function updateSampleDisplay() {
+            const sampleTextEl = document.getElementById('sampleText');
+            if (config && config.textboxes && config.textboxes[0]) {
+                sampleTextEl.textContent = `Sample: ${config.textboxes[0].text}`;
+            } else {
+                sampleTextEl.textContent = 'Sample: {qrcode}';
+            }
+        }
+
+        function printWithText(text) {
+            if (!config) {
+                showMenuStatus('No template loaded. Press F1 to upload a template.', 'error');
+                return;
+            }
+
+            console.log(`Printing with text: ${text}`);
+            
+            // Create a temporary modified config for printing
+            const printConfig = JSON.parse(JSON.stringify(config));
+            
+            // Replace {qrcode} in all textboxes
+            let replacementMade = false;
+            printConfig.textboxes.forEach(textbox => {
+                if (textbox.text.includes('{qrcode}')) {
+                    textbox.text = textbox.text.replace(/{qrcode}/g, text);
+                    replacementMade = true;
+                }
+            });
+
+            if (!replacementMade) {
+                showMenuStatus('Template has no {qrcode} placeholder', 'error');
+                return;
+            }
+
+            // Generate and print the design
+            generatePrintImage(printConfig);
+        }
+
+        function generatePrintImage(printConfig) {
+            // Create canvas for high-resolution printing
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+            
+            const scale = 3; // High resolution
+            const width = Math.round(printConfig.widthMM * printConfig.dpi / 25.4);
+            const height = Math.round(printConfig.heightMM * printConfig.dpi / 25.4);
+            
+            canvas.width = width * scale;
+            canvas.height = height * scale;
+            ctx.scale(scale, scale);
+            
+            // Draw white background
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(0, 0, width, height);
+            
+            // Check if there's a background image to load
+            if (printConfig.imageUrl && printConfig.image) {
+                loadImageForPrint(canvas, ctx, printConfig, width, height);
+            } else {
+                // No image, just render text and print
+                renderTextForPrint(ctx, printConfig);
+                finalizePrint(canvas, printConfig);
+            }
+        }
+        
+        function loadImageForPrint(canvas, ctx, printConfig, width, height) {
+            const img = new Image();
+            img.crossOrigin = 'anonymous';
+            img.onload = () => {
+                // Draw the background image
+                const scaledWidth = (printConfig.image.width || img.naturalWidth) * (printConfig.image.scale || 1);
+                const scaledHeight = (printConfig.image.height || img.naturalHeight) * (printConfig.image.scale || 1);
+                
+                ctx.save();
+                ctx.drawImage(img, 
+                    printConfig.image.x || 0, 
+                    printConfig.image.y || 0, 
+                    scaledWidth, 
+                    scaledHeight);
+                ctx.restore();
+                
+                // Draw text on top of image
+                renderTextForPrint(ctx, printConfig);
+                
+                // Finalize and print
+                finalizePrint(canvas, printConfig);
+                
+                console.log('Print image with background loaded and rendered');
+            };
+            img.onerror = () => {
+                console.error('Failed to load background image for printing');
+                // Print without image if it fails to load
+                renderTextForPrint(ctx, printConfig);
+                finalizePrint(canvas, printConfig);
+            };
+            img.src = printConfig.imageUrl;
+        }
+        
+        function renderTextForPrint(ctx, printConfig) {
+            // Draw text boxes
+            printConfig.textboxes.forEach(textbox => {
+                if (!textbox || !textbox.text) return;
+                
+                ctx.save();
+                ctx.font = `${textbox.fontSize || 16}px Arial`;
+                ctx.fillStyle = textbox.color || '#000000';
+                ctx.textAlign = textbox.textAlign || 'left';
+                ctx.textBaseline = 'top';
+                
+                const boxWidth = textbox.width || 150;
+                
+                // Calculate text position based on alignment
+                let textX = textbox.x;
+                if (textbox.textAlign === 'center') {
+                    textX = textbox.x + boxWidth / 2;
+                } else if (textbox.textAlign === 'right') {
+                    textX = textbox.x + boxWidth;
+                }
+                
+                ctx.fillText(textbox.text, textX, textbox.y + 5);
+                ctx.restore();
+            });
+        }
+        
+        function finalizePrint(canvas, printConfig) {
+            // Convert to image and print
+            const printArea = document.getElementById('printArea');
+            printArea.innerHTML = '';
+            
+            const img = document.createElement('img');
+            img.src = canvas.toDataURL('image/png', 1.0);
+            img.style.width = `${printConfig.widthMM / 25.4}in`;
+            img.style.height = `${printConfig.heightMM / 25.4}in`;
+            img.style.maxWidth = 'none';
+            img.style.maxHeight = 'none';
+            
+            printArea.appendChild(img);
+            printArea.style.display = 'block';
+            
+            setTimeout(() => {
+                window.print();
+                printArea.style.display = 'none';
+            }, 100);
+        }
+
+        function toggleMenu() {
+            const menu = document.getElementById('hiddenMenu');
+            menu.style.display = menu.style.display === 'none' ? 'flex' : 'none';
+        }
+
+        function closeMenu() {
+            document.getElementById('hiddenMenu').style.display = 'none';
+        }
+
+        function clearTemplate() {
+            localStorage.removeItem('wristband_design');
+            config = null;
+            updateSampleDisplay();
+            showMenuStatus('Template cleared', 'success');
+        }
+
+        function handleFileUpload(event) {
+            const file = event.target.files[0];
+            if (file) {
+                loadTemplateFile(file);
+            }
+        }
+
+        function handleDragOver(event) {
+            event.preventDefault();
+            document.getElementById('uploadArea').classList.add('dragover');
+        }
+
+        function handleDragLeave(event) {
+            document.getElementById('uploadArea').classList.remove('dragover');
+        }
+
+        function handleFileDrop(event) {
+            event.preventDefault();
+            document.getElementById('uploadArea').classList.remove('dragover');
+            
+            const files = event.dataTransfer.files;
+            if (files.length > 0) {
+                loadTemplateFile(files[0]);
+            }
+        }
+
+        function loadTemplateFile(file) {
+            if (!file.name.endsWith('.json')) {
+                showMenuStatus('Please select a JSON file', 'error');
+                return;
+            }
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const templateData = JSON.parse(e.target.result);
+                    config = templateData;
+                    localStorage.setItem('wristband_design', e.target.result);
+                    updateSampleDisplay();
+                    showMenuStatus('Template loaded successfully!', 'success');
+                } catch (error) {
+                    showMenuStatus('Invalid JSON file', 'error');
+                }
+            };
+            reader.readAsText(file);
+        }
+
+        function showMenuStatus(message, type) {
+            const status = document.getElementById('menuStatus');
+            status.textContent = message;
+            status.className = `status ${type}`;
+            status.style.display = 'block';
+            
+            setTimeout(() => {
+                status.style.display = 'none';
+            }, 3000);
+        }
+
+        function togglePreview() {
+            const preview = document.getElementById('templatePreview');
+            if (preview.style.display === 'none' || preview.style.display === '') {
+                showPreview();
+            } else {
+                closePreview();
+            }
+        }
+
+        function showPreview() {
+            if (!config) {
+                showMenuStatus('No template loaded. Press F1 to upload a template.', 'error');
+                return;
+            }
+
+            const preview = document.getElementById('templatePreview');
+            preview.style.display = 'flex';
+            
+            renderPreview();
+            updatePreviewInfo();
+        }
+
+        function closePreview() {
+            document.getElementById('templatePreview').style.display = 'none';
+        }
+
+        function renderPreview() {
+            const canvas = document.getElementById('previewCanvas');
+            const ctx = canvas.getContext('2d');
+            
+            // Calculate dimensions
+            const width = Math.round(config.widthMM * config.dpi / 25.4) || 600;
+            const height = Math.round(config.heightMM * config.dpi / 25.4) || 200;
+            
+            canvas.width = width;
+            canvas.height = height;
+            
+            // Scale canvas for better display
+            const containerWidth = Math.min(800, window.innerWidth * 0.8);
+            const scale = containerWidth / width;
+            canvas.style.width = (width * scale) + 'px';
+            canvas.style.height = (height * scale) + 'px';
+            
+            // Clear and draw background
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(0, 0, width, height);
+            
+            // Load and draw background image if URL exists
+            if (config.imageUrl && config.image) {
+                loadImageForPreview(ctx, width, height);
+            } else {
+                // If no image, just draw textboxes
+                drawPreviewTextboxes(ctx);
+            }
+        }
+        
+        function loadImageForPreview(ctx, width, height) {
+            const img = new Image();
+            img.crossOrigin = 'anonymous';
+            img.onload = () => {
+                // Draw the background image
+                const scaledWidth = (config.image.width || img.naturalWidth) * (config.image.scale || 1);
+                const scaledHeight = (config.image.height || img.naturalHeight) * (config.image.scale || 1);
+                
+                ctx.save();
+                ctx.drawImage(img, 
+                    config.image.x || 0, 
+                    config.image.y || 0, 
+                    scaledWidth, 
+                    scaledHeight);
+                ctx.restore();
+                
+                // Draw textboxes on top of image
+                drawPreviewTextboxes(ctx);
+                
+                console.log('Preview image loaded and drawn');
+            };
+            img.onerror = () => {
+                console.error('Failed to load preview image');
+                // Show placeholder on error
+                ctx.fillStyle = '#ffebee';
+                ctx.fillRect(config.image.x || 0, config.image.y || 0, 
+                           config.image.width || 100, config.image.height || 50);
+                
+                ctx.fillStyle = '#d32f2f';
+                ctx.font = '14px Arial';
+                ctx.textAlign = 'center';
+                ctx.fillText('Image Error', (config.image.x || 0) + (config.image.width || 100) / 2, 
+                           (config.image.y || 0) + (config.image.height || 50) / 2);
+                
+                // Draw textboxes even if image fails
+                drawPreviewTextboxes(ctx);
+            };
+            img.src = config.imageUrl;
+        }
+        
+        function drawPreviewTextboxes(ctx) {
+            // Draw text boxes
+            config.textboxes.forEach(textbox => {
+                if (!textbox || !textbox.text) return;
+                
+                ctx.save();
+                ctx.font = `${textbox.fontSize || 16}px Arial`;
+                ctx.fillStyle = textbox.color || '#000000';
+                ctx.textAlign = textbox.textAlign || 'left';
+                ctx.textBaseline = 'top';
+                
+                const boxWidth = textbox.width || 150;
+                
+                // Draw textbox background (semi-transparent)
+                ctx.fillStyle = 'rgba(0, 123, 255, 0.1)';
+                ctx.fillRect(textbox.x, textbox.y, boxWidth, textbox.height || 40);
+                
+                // Draw textbox border
+                ctx.strokeStyle = '#007bff';
+                ctx.lineWidth = 1;
+                ctx.setLineDash([2, 2]);
+                ctx.strokeRect(textbox.x, textbox.y, boxWidth, textbox.height || 40);
+                ctx.setLineDash([]);
+                
+                // Calculate text position based on alignment
+                let textX = textbox.x;
+                if (textbox.textAlign === 'center') {
+                    textX = textbox.x + boxWidth / 2;
+                } else if (textbox.textAlign === 'right') {
+                    textX = textbox.x + boxWidth;
+                }
+                
+                // Draw text with background for better visibility
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
+                const textMetrics = ctx.measureText(textbox.text);
+                const textHeight = textbox.fontSize || 16;
+                ctx.fillRect(textX - (textbox.textAlign === 'center' ? textMetrics.width / 2 : 
+                                   textbox.textAlign === 'right' ? textMetrics.width : 0) - 2, 
+                           textbox.y + 3, textMetrics.width + 4, textHeight + 4);
+                
+                // Draw text
+                ctx.fillStyle = textbox.color || '#000000';
+                ctx.fillText(textbox.text, textX, textbox.y + 5);
+                
+                ctx.restore();
+            });
+        }
+
+        function updatePreviewInfo() {
+            // Update dimensions
+            const dimensions = config.widthMM && config.heightMM ? 
+                `${config.widthMM}mm × ${config.heightMM}mm` : 'Unknown';
+            document.getElementById('previewDimensions').textContent = dimensions;
+            
+            // Update textboxes count
+            const textboxCount = config.textboxes ? config.textboxes.length : 0;
+            document.getElementById('previewTextboxes').textContent = textboxCount;
+            
+            // Update image status
+            const hasImage = config.image && config.image.x !== undefined;
+            document.getElementById('previewImage').textContent = hasImage ? 'Yes' : 'No';
+        }
+
+        // Initialize when page loads
+        window.addEventListener('load', init);
+    </script>
+</body>
+</html>
