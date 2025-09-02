@@ -1,0 +1,1124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Wristband Designer</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f0f0f0;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        .controls {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+        
+        .control-group {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+        
+        label {
+            font-weight: bold;
+            font-size: 12px;
+            color: #555;
+        }
+        
+        input[type="text"], input[type="number"], input[type="url"] {
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        
+        button {
+            padding: 10px 15px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background-color 0.2s;
+        }
+        
+        .btn-primary {
+            background-color: #007bff;
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background-color: #0056b3;
+        }
+        
+        .btn-success {
+            background-color: #28a745;
+            color: white;
+        }
+        
+        .btn-success:hover {
+            background-color: #1e7e34;
+        }
+        
+        .btn-danger {
+            background-color: #dc3545;
+            color: white;
+        }
+        
+        .btn-danger:hover {
+            background-color: #c82333;
+        }
+        
+        .btn-warning {
+            background-color: #ffc107;
+            color: black;
+        }
+        
+        .btn-warning:hover {
+            background-color: #e0a800;
+        }
+        
+        .canvas-container {
+            border: 2px dashed #ccc;
+            background: white;
+            margin: 20px 0;
+            width: 100%;
+            max-width: 100%;
+            position: relative;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        
+        .design-canvas {
+            display: block;
+            cursor: crosshair;
+            background: #f9f9f9;
+            max-width: 100%;
+            height: auto;
+            border-radius: 4px;
+        }
+        
+        .textbox {
+            position: absolute;
+            border: 2px dashed #007bff;
+            cursor: move;
+            background: rgba(255, 255, 255, 0.9);
+            min-width: 50px;
+            min-height: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .textbox:hover {
+            border-color: #0056b3;
+        }
+        
+        .textbox.selected {
+            border-color: #28a745;
+            border-style: solid;
+        }
+        
+        .textbox input {
+            border: none;
+            background: transparent;
+            text-align: center;
+            outline: none;
+            width: 100%;
+            font-family: inherit;
+            resize: none;
+        }
+        
+        .textbox .delete-btn {
+            position: absolute;
+            top: -10px;
+            right: -10px;
+            width: 20px;
+            height: 20px;
+            background: #dc3545;
+            color: white;
+            border: none;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 12px;
+            display: none;
+        }
+        
+        .textbox:hover .delete-btn,
+        .textbox.selected .delete-btn {
+            display: block;
+        }
+        
+        .background-image {
+            width: 100%;
+            height: 100%;
+            object-fit: none;
+            position: absolute;
+            top: 0;
+            left: 0;
+            z-index: -1;
+            cursor: move;
+            user-select: none;
+        }
+        
+        .background-image:hover {
+            z-index: 1;
+            opacity: 0.8;
+        }
+        
+        .background-image.dragging {
+            z-index: 1000;
+            opacity: 0.7;
+        }
+        
+        @media print {
+            @page {
+                margin: 0.5in;
+                size: letter;
+            }
+            
+            body {
+                margin: 0;
+                padding: 0;
+                background: white !important;
+            }
+            
+            body * {
+                visibility: hidden;
+            }
+            
+            .print-area, .print-area * {
+                visibility: visible !important;
+            }
+            
+            .print-area {
+                position: fixed;
+                left: 50%;
+                top: 50%;
+                transform: translate(-50%, -50%) rotate(-90deg);
+                transform-origin: center;
+                background: white !important;
+                z-index: 9999;
+            }
+            
+            .print-area img {
+                display: block;
+                -webkit-print-color-adjust: exact;
+                color-adjust: exact;
+                print-color-adjust: exact;
+            }
+        }
+        
+        .status {
+            margin-top: 10px;
+            padding: 10px;
+            border-radius: 4px;
+            display: none;
+        }
+        
+        .status.success {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        
+        .status.error {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Wristband Designer</h1>
+        
+        <div class="controls">
+            <div class="control-group">
+                <label for="imageUrl">Image URL:</label>
+                <input type="url" id="imageUrl" placeholder="Enter image URL" style="width: 300px;">
+            </div>
+            
+            <div class="control-group">
+                <label for="width">Width (mm):</label>
+                <input type="number" id="width" value="159" min="25" max="305" step="1">
+            </div>
+            
+            <div class="control-group">
+                <label for="height">Height (mm):</label>
+                <input type="number" id="height" value="53" min="13" max="152" step="1">
+            </div>
+            
+            <button class="btn-primary" onclick="updateDesign()">Update Design</button>
+            <button class="btn-success" onclick="addTextbox()">Add Text</button>
+            <button class="btn-danger" onclick="resetImage()">Reset Image Position</button>
+            <button class="btn-danger" onclick="deleteSelected()" id="deleteBtn" style="display: none;">Delete Selected</button>
+            <button class="btn-warning" onclick="saveDesign()">Save Design</button>
+            <button class="btn-primary" onclick="printDesign()">Print</button>
+            
+            <div class="control-group" style="margin-top: 15px; border-top: 1px solid #ddd; padding-top: 15px;">
+                <label for="qrValue">Quick Print Value:</label>
+                <input type="text" id="qrValue" placeholder="Enter value to replace {qrcode} and print" style="width: 250px;" onkeypress="handleQRValueKeyPress(event)">
+                <button class="btn-primary" onclick="replaceAndPrint()">Replace & Print</button>
+            </div>
+        </div>
+        
+        <div class="canvas-container">
+            <canvas id="designCanvas" class="design-canvas" width="600" height="200"></canvas>
+        </div>
+        
+        <div id="status" class="status"></div>
+        
+        <div id="printArea" class="print-area" style="display: none;">
+            <!-- This will be populated during printing -->
+        </div>
+    </div>
+
+    <script>
+        let textboxCounter = 0;
+
+        // Configuration object
+        const config = {
+            imageUrl: '',
+            widthMM: 159,         // Physical width in millimeters (6.25")
+            heightMM: 53,         // Physical height in millimeters (2.08")
+            dpi: 96,              // Dots per inch for canvas resolution
+            get widthInches() { return this.widthMM / 25.4; },                    // Convert mm to inches
+            get heightInches() { return this.heightMM / 25.4; },                  // Convert mm to inches
+            get width() { return Math.round(this.widthInches * this.dpi); },      // Calculated pixel width
+            get height() { return Math.round(this.heightInches * this.dpi); },    // Calculated pixel height
+            image: {
+                x: 0,
+                y: 0,
+                width: 0,
+                height: 0,
+                scale: 1,
+                loaded: false,
+                element: null
+            },
+            textboxes: []
+        };
+        
+        // Canvas variables
+        let canvas, ctx;
+        let isDragging = false;
+        let isResizing = false;
+        let dragStart = { x: 0, y: 0 };
+        let resizeHandle = null;
+        let originalImageSize = { width: 0, height: 0 };
+        let selectedElement = null;
+        let canvasScale = 1; // Track the display scale of canvas
+
+        // Initialize the application
+        function init() {
+            console.log('Initializing application...');
+            canvas = document.getElementById('designCanvas');
+            if (!canvas) {
+                console.error('Canvas element not found!');
+                return;
+            }
+            
+            ctx = canvas.getContext('2d');
+            if (!ctx) {
+                console.error('Canvas context not available!');
+                return;
+            }
+            
+            console.log('Canvas initialized successfully');
+            setupCanvasEventListeners();
+            setupEventListeners();
+            
+            // Add window resize listener
+            window.addEventListener('resize', () => {
+                scaleCanvasToFit();
+            });
+            
+            loadDesign();
+            scaleCanvasToFit(); // Initial scaling
+            drawCanvas();
+            console.log('Application initialization complete');
+        }
+
+        function setupEventListeners() {
+            const imageUrlInput = document.getElementById('imageUrl');
+            const widthInput = document.getElementById('width');
+            const heightInput = document.getElementById('height');
+
+            imageUrlInput.addEventListener('input', () => {
+                config.imageUrl = imageUrlInput.value;
+                updateBackgroundImage();
+            });
+
+            widthInput.addEventListener('input', () => {
+                config.widthMM = parseFloat(widthInput.value) || 159;
+                updateDesignArea();
+                updateSizeDisplay();
+            });
+
+            heightInput.addEventListener('input', () => {
+                config.heightMM = parseFloat(heightInput.value) || 53;
+                updateDesignArea();
+                updateSizeDisplay();
+            });
+        }
+        
+        function updateSizeDisplay() {
+            console.log(`Design size: ${config.widthMM}mm x ${config.heightMM}mm (${config.widthInches.toFixed(2)}" x ${config.heightInches.toFixed(2)}") - ${config.width}px x ${config.height}px`);
+        }
+        
+        function drawCanvas() {
+            if (!canvas || !ctx) {
+                console.error('Canvas not initialized');
+                return;
+            }
+            
+            // Clear canvas
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            // Draw background
+            ctx.fillStyle = '#f9f9f9';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            // Draw background image if loaded
+            if (config.image.loaded && config.image.element) {
+                const img = config.image.element;
+                const scaledWidth = config.image.width * config.image.scale;
+                const scaledHeight = config.image.height * config.image.scale;
+                
+                ctx.save();
+                ctx.drawImage(img, config.image.x, config.image.y, scaledWidth, scaledHeight);
+                ctx.restore();
+                
+                // Draw selection handles if image is selected
+                if (selectedElement === 'image') {
+                    drawImageHandles();
+                }
+            }
+            
+            // Draw text boxes
+            config.textboxes.forEach((textbox, index) => {
+                drawTextbox(textbox, selectedElement === `text-${index}`);
+            });
+        }
+        
+        function drawImageHandles() {
+            const scaledWidth = config.image.width * config.image.scale;
+            const scaledHeight = config.image.height * config.image.scale;
+            const x = config.image.x;
+            const y = config.image.y;
+            
+            ctx.strokeStyle = '#007bff';
+            ctx.lineWidth = 2;
+            ctx.setLineDash([5, 5]);
+            ctx.strokeRect(x, y, scaledWidth, scaledHeight);
+            ctx.setLineDash([]);
+            
+            // Draw resize handles
+            const handleSize = 12;
+            ctx.fillStyle = '#007bff';
+            ctx.strokeStyle = '#ffffff';
+            ctx.lineWidth = 2;
+            
+            // Corner handles for resizing
+            const handles = [
+                { x: x - handleSize/2, y: y - handleSize/2, cursor: 'nw-resize', corner: 'nw' },
+                { x: x + scaledWidth - handleSize/2, y: y - handleSize/2, cursor: 'ne-resize', corner: 'ne' },
+                { x: x - handleSize/2, y: y + scaledHeight - handleSize/2, cursor: 'sw-resize', corner: 'sw' },
+                { x: x + scaledWidth - handleSize/2, y: y + scaledHeight - handleSize/2, cursor: 'se-resize', corner: 'se' }
+            ];
+            
+            handles.forEach(handle => {
+                ctx.fillRect(handle.x, handle.y, handleSize, handleSize);
+                ctx.strokeRect(handle.x, handle.y, handleSize, handleSize);
+            });
+            
+            // Store handle positions for hit detection
+            config.image.handles = handles;
+        }
+        
+        function drawTextbox(textbox, isSelected) {
+            if (!textbox || !textbox.text) return;
+            
+            ctx.save();
+            ctx.font = `${textbox.fontSize || 16}px Arial`;
+            ctx.fillStyle = textbox.color || '#000000';
+            ctx.textAlign = 'left';
+            ctx.textBaseline = 'top';
+            
+            const textWidth = ctx.measureText(textbox.text).width;
+            const textHeight = textbox.fontSize || 16;
+            
+            // Draw background for text if selected
+            if (isSelected) {
+                ctx.fillStyle = 'rgba(0, 123, 255, 0.1)';
+                ctx.fillRect(textbox.x - 5, textbox.y - 5, textWidth + 10, textHeight + 10);
+                
+                ctx.strokeStyle = '#007bff';
+                ctx.lineWidth = 2;
+                ctx.setLineDash([3, 3]);
+                ctx.strokeRect(textbox.x - 5, textbox.y - 5, textWidth + 10, textHeight + 10);
+                ctx.setLineDash([]);
+            }
+            
+            // Draw text
+            ctx.fillStyle = textbox.color || '#000000';
+            ctx.fillText(textbox.text, textbox.x, textbox.y);
+            
+            ctx.restore();
+        }
+
+        function updateDesign() {
+            const imageUrl = document.getElementById('imageUrl').value;
+            const widthMM = parseFloat(document.getElementById('width').value) || 159;
+            const heightMM = parseFloat(document.getElementById('height').value) || 53;
+
+            config.imageUrl = imageUrl;
+            config.widthMM = widthMM;
+            config.heightMM = heightMM;
+
+            updateDesignArea();
+            updateBackgroundImage();
+            updateSizeDisplay();
+            showStatus('Design updated successfully!', 'success');
+        }
+
+        function updateDesignArea() {
+            canvas.width = config.width;
+            canvas.height = config.height;
+            scaleCanvasToFit();
+            drawCanvas();
+        }
+        
+        function scaleCanvasToFit() {
+            const container = canvas.parentElement;
+            const containerWidth = container.clientWidth - 20; // Account for border and padding
+            const canvasAspectRatio = config.width / config.height;
+            
+            let displayWidth = containerWidth;
+            let displayHeight = containerWidth / canvasAspectRatio;
+            
+            // If height would be too tall, scale by height instead
+            const maxHeight = window.innerHeight * 0.6; // Max 60% of viewport height
+            if (displayHeight > maxHeight) {
+                displayHeight = maxHeight;
+                displayWidth = maxHeight * canvasAspectRatio;
+            }
+            
+            canvas.style.width = displayWidth + 'px';
+            canvas.style.height = displayHeight + 'px';
+            
+            // Calculate scale for mouse coordinate conversion
+            canvasScale = displayWidth / config.width;
+            
+            console.log(`Canvas scaled: ${displayWidth}x${displayHeight}, scale: ${canvasScale}`);
+        }
+
+        function updateBackgroundImage() {
+            if (config.imageUrl && config.imageUrl !== '') {
+                console.log('Loading image:', config.imageUrl);
+                const img = new Image();
+                img.crossOrigin = 'anonymous';
+                img.onload = () => {
+                    console.log('Image loaded successfully');
+                    config.image.element = img;
+                    config.image.loaded = true;
+                    
+                    // Set initial size and position if not set or if image dimensions are zero
+                    if (config.image.width === 0 || config.image.height === 0) {
+                        // Scale image to fit canvas while maintaining aspect ratio
+                        const maxWidth = config.width * 0.8;
+                        const maxHeight = config.height * 0.8;
+                        const imageAspectRatio = img.naturalWidth / img.naturalHeight;
+                        const canvasAspectRatio = maxWidth / maxHeight;
+                        
+                        if (imageAspectRatio > canvasAspectRatio) {
+                            // Image is wider relative to canvas
+                            config.image.width = maxWidth;
+                            config.image.height = maxWidth / imageAspectRatio;
+                        } else {
+                            // Image is taller relative to canvas
+                            config.image.height = maxHeight;
+                            config.image.width = maxHeight * imageAspectRatio;
+                        }
+                        
+                        // Center the image if position is not set
+                        if (config.image.x === 0 && config.image.y === 0) {
+                            config.image.x = (config.width - config.image.width) / 2;
+                            config.image.y = (config.height - config.image.height) / 2;
+                        }
+                        
+                        if (config.image.scale === 0) {
+                            config.image.scale = 1;
+                        }
+                    }
+                    drawCanvas();
+                    showStatus('Image loaded successfully!', 'success');
+                };
+                img.onerror = () => {
+                    console.error('Failed to load image');
+                    showStatus('Failed to load image', 'error');
+                    config.image.loaded = false;
+                    config.image.element = null;
+                    drawCanvas();
+                };
+                img.src = config.imageUrl;
+            } else {
+                config.image.loaded = false;
+                config.image.element = null;
+                config.image.width = 0;
+                config.image.height = 0;
+                drawCanvas();
+            }
+        }
+
+        function setupCanvasEventListeners() {
+            canvas.addEventListener('mousedown', handleCanvasMouseDown);
+            canvas.addEventListener('mousemove', handleCanvasMouseMove);
+            canvas.addEventListener('mouseup', handleCanvasMouseUp);
+            canvas.addEventListener('wheel', handleCanvasWheel, { passive: false });
+            canvas.addEventListener('dblclick', handleCanvasDoubleClick);
+        }
+        
+        function handleCanvasMouseDown(e) {
+            const rect = canvas.getBoundingClientRect();
+            const x = (e.clientX - rect.left) / canvasScale;
+            const y = (e.clientY - rect.top) / canvasScale;
+            
+            dragStart = { x, y };
+            
+            // Check if clicking on image resize handle first
+            if (config.image.loaded && selectedElement === 'image') {
+                const handle = getResizeHandle(x, y);
+                if (handle) {
+                    isResizing = true;
+                    resizeHandle = handle;
+                    originalImageSize = { width: config.image.width, height: config.image.height };
+                    canvas.style.cursor = handle.cursor;
+                    return;
+                }
+            }
+            
+            // Check if clicking on image
+            if (config.image.loaded && isPointInImage(x, y)) {
+                selectedElement = 'image';
+                isDragging = true;
+                canvas.style.cursor = 'move';
+                updateDeleteButton();
+                drawCanvas();
+                return;
+            }
+            
+            // Check if clicking on text
+            const textIndex = getTextAtPoint(x, y);
+            if (textIndex !== -1) {
+                selectedElement = `text-${textIndex}`;
+                isDragging = true;
+                canvas.style.cursor = 'move';
+                updateDeleteButton();
+                drawCanvas();
+                return;
+            }
+            
+            // Clear selection if clicking on empty area
+            selectedElement = null;
+            updateDeleteButton();
+            drawCanvas();
+        }
+        
+        function handleCanvasMouseMove(e) {
+            const rect = canvas.getBoundingClientRect();
+            const x = (e.clientX - rect.left) / canvasScale;
+            const y = (e.clientY - rect.top) / canvasScale;
+            
+            if (isResizing && resizeHandle) {
+                const deltaX = x - dragStart.x;
+                const deltaY = y - dragStart.y;
+                
+                // Calculate new dimensions based on resize handle
+                let newWidth = originalImageSize.width;
+                let newHeight = originalImageSize.height;
+                let newX = config.image.x;
+                let newY = config.image.y;
+                
+                switch (resizeHandle.corner) {
+                    case 'se': // Bottom-right corner
+                        newWidth = originalImageSize.width + deltaX / config.image.scale;
+                        newHeight = originalImageSize.height + deltaY / config.image.scale;
+                        break;
+                    case 'sw': // Bottom-left corner
+                        newWidth = originalImageSize.width - deltaX / config.image.scale;
+                        newHeight = originalImageSize.height + deltaY / config.image.scale;
+                        newX = config.image.x + deltaX;
+                        break;
+                    case 'ne': // Top-right corner
+                        newWidth = originalImageSize.width + deltaX / config.image.scale;
+                        newHeight = originalImageSize.height - deltaY / config.image.scale;
+                        newY = config.image.y + deltaY;
+                        break;
+                    case 'nw': // Top-left corner
+                        newWidth = originalImageSize.width - deltaX / config.image.scale;
+                        newHeight = originalImageSize.height - deltaY / config.image.scale;
+                        newX = config.image.x + deltaX;
+                        newY = config.image.y + deltaY;
+                        break;
+                }
+                
+                // Apply constraints
+                const minSize = 20;
+                newWidth = Math.max(minSize, newWidth);
+                newHeight = Math.max(minSize, newHeight);
+                
+                config.image.width = newWidth;
+                config.image.height = newHeight;
+                config.image.x = newX;
+                config.image.y = newY;
+                
+                drawCanvas();
+                return;
+            }
+            
+            if (isDragging && selectedElement) {
+                const deltaX = x - dragStart.x;
+                const deltaY = y - dragStart.y;
+                
+                if (selectedElement === 'image') {
+                    config.image.x += deltaX;
+                    config.image.y += deltaY;
+                    // Constrain to canvas bounds
+                    config.image.x = Math.max(-config.image.width * 0.5, Math.min(config.width - config.image.width * 0.5, config.image.x));
+                    config.image.y = Math.max(-config.image.height * 0.5, Math.min(config.height - config.image.height * 0.5, config.image.y));
+                } else if (selectedElement.startsWith('text-')) {
+                    const textIndex = parseInt(selectedElement.split('-')[1]);
+                    const textbox = config.textboxes[textIndex];
+                    if (textbox) {
+                        textbox.x += deltaX;
+                        textbox.y += deltaY;
+                        // Constrain to canvas bounds
+                        textbox.x = Math.max(0, Math.min(config.width - 100, textbox.x));
+                        textbox.y = Math.max(0, Math.min(config.height - textbox.fontSize, textbox.y));
+                    }
+                }
+                
+                dragStart = { x, y };
+                drawCanvas();
+                return;
+            }
+            
+            // Update cursor based on hover
+            if (config.image.loaded && selectedElement === 'image') {
+                const handle = getResizeHandle(x, y);
+                if (handle) {
+                    canvas.style.cursor = handle.cursor;
+                } else if (isPointInImage(x, y)) {
+                    canvas.style.cursor = 'move';
+                } else {
+                    canvas.style.cursor = 'default';
+                }
+            } else if (config.image.loaded && isPointInImage(x, y)) {
+                canvas.style.cursor = 'move';
+            } else if (getTextAtPoint(x, y) !== -1) {
+                canvas.style.cursor = 'move';
+            } else {
+                canvas.style.cursor = 'default';
+            }
+        }
+        
+        function handleCanvasMouseUp() {
+            isDragging = false;
+            isResizing = false;
+            resizeHandle = null;
+            canvas.style.cursor = 'default';
+        }
+        
+        function handleCanvasWheel(e) {
+            e.preventDefault();
+            const rect = canvas.getBoundingClientRect();
+            const x = (e.clientX - rect.left) / canvasScale;
+            const y = (e.clientY - rect.top) / canvasScale;
+            
+            if (config.image.loaded && isPointInImage(x, y)) {
+                const scaleChange = e.deltaY > 0 ? -0.1 : 0.1;
+                config.image.scale = Math.max(0.1, Math.min(3, config.image.scale + scaleChange));
+                drawCanvas();
+            }
+        }
+        
+        function handleCanvasDoubleClick(e) {
+            const rect = canvas.getBoundingClientRect();
+            const x = (e.clientX - rect.left) / canvasScale;
+            const y = (e.clientY - rect.top) / canvasScale;
+            
+            const textIndex = getTextAtPoint(x, y);
+            if (textIndex !== -1) {
+                editText(textIndex);
+            }
+        }
+        
+        function isPointInImage(x, y) {
+            if (!config.image.loaded) return false;
+            const scaledWidth = config.image.width * config.image.scale;
+            const scaledHeight = config.image.height * config.image.scale;
+            return x >= config.image.x && x <= config.image.x + scaledWidth &&
+                   y >= config.image.y && y <= config.image.y + scaledHeight;
+        }
+        
+        function getResizeHandle(x, y) {
+            if (!config.image.loaded || !config.image.handles) return null;
+            
+            const handleSize = 12;
+            for (let handle of config.image.handles) {
+                if (x >= handle.x && x <= handle.x + handleSize &&
+                    y >= handle.y && y <= handle.y + handleSize) {
+                    return handle;
+                }
+            }
+            return null;
+        }
+        
+        function getTextAtPoint(x, y) {
+            if (!ctx) return -1;
+            
+            for (let i = config.textboxes.length - 1; i >= 0; i--) {
+                const textbox = config.textboxes[i];
+                if (!textbox || !textbox.text) continue;
+                
+                ctx.font = `${textbox.fontSize || 16}px Arial`;
+                const textWidth = ctx.measureText(textbox.text).width;
+                const textHeight = textbox.fontSize || 16;
+                
+                if (x >= textbox.x - 5 && x <= textbox.x + textWidth + 5 &&
+                    y >= textbox.y - 5 && y <= textbox.y + textHeight + 5) {
+                    return i;
+                }
+            }
+            return -1;
+        }
+        
+        function addTextbox() {
+            const newTextbox = {
+                id: `textbox-${++textboxCounter}`,
+                text: 'Sample Text',
+                x: 50,
+                y: 50,
+                fontSize: 16,
+                color: '#000000'
+            };
+            
+            config.textboxes.push(newTextbox);
+            selectedElement = `text-${config.textboxes.length - 1}`;
+            updateDeleteButton();
+            drawCanvas();
+        }
+        
+        function editText(index) {
+            const textbox = config.textboxes[index];
+            if (!textbox) return;
+            
+            const newText = prompt('Enter new text:', textbox.text);
+            if (newText !== null && newText !== textbox.text) {
+                textbox.text = newText;
+                drawCanvas();
+            }
+        }
+        
+        function deleteSelected() {
+            if (selectedElement === 'image') {
+                // Can't delete image, only reset it
+                resetImage();
+            } else if (selectedElement && selectedElement.startsWith('text-')) {
+                const textIndex = parseInt(selectedElement.split('-')[1]);
+                config.textboxes.splice(textIndex, 1);
+                selectedElement = null;
+                updateDeleteButton();
+                drawCanvas();
+            }
+        }
+        
+        function updateDeleteButton() {
+            const deleteBtn = document.getElementById('deleteBtn');
+            if (selectedElement && selectedElement.startsWith('text-')) {
+                deleteBtn.style.display = 'inline-block';
+            } else {
+                deleteBtn.style.display = 'none';
+            }
+        }
+
+        // Legacy function - no longer used with canvas
+
+        // Legacy functions - no longer used with canvas
+
+        function saveDesign() {
+            // Create a clean config object for saving (without getter functions)
+            const saveConfig = {
+                imageUrl: config.imageUrl,
+                widthMM: config.widthMM,
+                heightMM: config.heightMM,
+                dpi: config.dpi,
+                image: {
+                    x: config.image.x,
+                    y: config.image.y,
+                    width: config.image.width,
+                    height: config.image.height,
+                    scale: config.image.scale,
+                    loaded: config.image.loaded
+                },
+                textboxes: config.textboxes
+            };
+            
+            const dataStr = JSON.stringify(saveConfig, null, 2);
+            const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
+            
+            const exportFileDefaultName = 'wristband_design.json';
+            
+            const linkElement = document.createElement('a');
+            linkElement.setAttribute('href', dataUri);
+            linkElement.setAttribute('download', exportFileDefaultName);
+            linkElement.click();
+            
+            // Also try to save to local storage as backup
+            localStorage.setItem('wristband_design', dataStr);
+            
+            showStatus('Design saved successfully!', 'success');
+        }
+
+        function loadDesign() {
+            // Try to load from local storage first
+            const savedDesign = localStorage.getItem('wristband_design');
+            
+            if (savedDesign) {
+                try {
+                    const loadedConfig = JSON.parse(savedDesign);
+                    
+                    // Merge loaded config with current config
+                    config.imageUrl = loadedConfig.imageUrl || '';
+                    
+                    // Handle different measurement formats
+                    if (loadedConfig.widthMM !== undefined) {
+                        // New mm format
+                        config.widthMM = loadedConfig.widthMM || 159;
+                        config.heightMM = loadedConfig.heightMM || 53;
+                    } else if (loadedConfig.widthInches !== undefined) {
+                        // Old inches format - convert to mm
+                        config.widthMM = Math.round((loadedConfig.widthInches || 6.25) * 25.4);
+                        config.heightMM = Math.round((loadedConfig.heightInches || 2.08) * 25.4);
+                    } else {
+                        // Legacy pixel format - assume 96 DPI and convert to mm
+                        const widthInches = (loadedConfig.width || 600) / 96;
+                        const heightInches = (loadedConfig.height || 200) / 96;
+                        config.widthMM = Math.round(widthInches * 25.4);
+                        config.heightMM = Math.round(heightInches * 25.4);
+                    }
+                    
+                    config.textboxes = loadedConfig.textboxes || [];
+                    
+                    // Handle image positioning and dimensions
+                    if (loadedConfig.image) {
+                        // New format with complete image object
+                        Object.assign(config.image, loadedConfig.image);
+                        // Don't restore loaded state - image will be reloaded
+                        config.image.loaded = false;
+                        config.image.element = null;
+                    } else if (loadedConfig.imageX !== undefined) {
+                        // Legacy format - convert to new format
+                        config.image.x = loadedConfig.imageX;
+                        config.image.y = loadedConfig.imageY;
+                        config.image.scale = loadedConfig.imageScale || 1;
+                        // Will set dimensions when image loads
+                        config.image.width = 0;
+                        config.image.height = 0;
+                        config.image.loaded = false;
+                        config.image.element = null;
+                    }
+                    
+                    // Update UI
+                    document.getElementById('imageUrl').value = config.imageUrl;
+                    document.getElementById('width').value = config.widthMM;
+                    document.getElementById('height').value = config.heightMM;
+                    
+                    updateDesignArea();
+                    updateBackgroundImage();
+                    
+                    showStatus('Design loaded successfully!', 'success');
+                } catch (error) {
+                    console.error('Error loading design:', error);
+                    showStatus('Error loading saved design', 'error');
+                }
+            }
+        }
+
+        // Legacy function - no longer used with canvas
+
+        function printDesign() {
+            // Create a new canvas for printing with higher resolution
+            const printCanvas = document.createElement('canvas');
+            const printCtx = printCanvas.getContext('2d');
+            
+            // Set high resolution for print quality - use actual design dimensions
+            const scale = 3; // Higher scale for better print quality
+            printCanvas.width = config.width * scale;
+            printCanvas.height = config.height * scale;
+            printCtx.scale(scale, scale);
+            
+            // Draw the design on print canvas at full resolution
+            drawDesignToCanvas(printCtx);
+            
+            // Convert canvas to image and set up print area
+            const printArea = document.getElementById('printArea');
+            printArea.innerHTML = '';
+            
+            const img = document.createElement('img');
+            img.src = printCanvas.toDataURL('image/png', 1.0); // Maximum quality
+            
+            // Use the actual physical dimensions for print
+            img.style.width = `${config.widthInches}in`;
+            img.style.height = `${config.heightInches}in`;
+            img.style.maxWidth = 'none';
+            img.style.maxHeight = 'none';
+            
+            printArea.appendChild(img);
+            printArea.style.display = 'block';
+            
+            console.log(`Print dimensions: ${config.widthMM}mm x ${config.heightMM}mm (${config.widthInches.toFixed(2)}" x ${config.heightInches.toFixed(2)}")`);
+            
+            setTimeout(() => {
+                window.print();
+                printArea.style.display = 'none';
+            }, 100);
+        }
+        
+        function drawDesignToCanvas(printCtx) {
+            // Clear canvas
+            printCtx.clearRect(0, 0, config.width, config.height);
+            
+            // Draw white background
+            printCtx.fillStyle = '#ffffff';
+            printCtx.fillRect(0, 0, config.width, config.height);
+            
+            // Draw background image if loaded
+            if (config.image.loaded && config.image.element) {
+                const img = config.image.element;
+                const scaledWidth = config.image.width * config.image.scale;
+                const scaledHeight = config.image.height * config.image.scale;
+                
+                printCtx.save();
+                printCtx.drawImage(img, config.image.x, config.image.y, scaledWidth, scaledHeight);
+                printCtx.restore();
+            }
+            
+            // Draw text boxes
+            config.textboxes.forEach((textbox) => {
+                if (!textbox || !textbox.text) return;
+                
+                printCtx.save();
+                printCtx.font = `${textbox.fontSize || 16}px Arial`;
+                printCtx.fillStyle = textbox.color || '#000000';
+                printCtx.textAlign = 'left';
+                printCtx.textBaseline = 'top';
+                printCtx.fillText(textbox.text, textbox.x, textbox.y);
+                printCtx.restore();
+            });
+        }
+
+        function showStatus(message, type) {
+            const status = document.getElementById('status');
+            status.textContent = message;
+            status.className = `status ${type}`;
+            status.style.display = 'block';
+            
+            setTimeout(() => {
+                status.style.display = 'none';
+            }, 3000);
+        }
+
+        // Legacy function - replaced with canvas drag functionality
+        
+        function resetImage() {
+            if (config.image.loaded) {
+                // Reset to center position
+                config.image.x = (config.width - config.image.width) / 2;
+                config.image.y = (config.height - config.image.height) / 2;
+                config.image.scale = 1;
+                drawCanvas();
+                showStatus('Image position reset', 'success');
+            }
+        }
+        
+        function handleQRValueKeyPress(event) {
+            if (event.key === 'Enter') {
+                event.preventDefault();
+                replaceAndPrint();
+            }
+        }
+        
+        function replaceAndPrint() {
+            const qrInput = document.getElementById('qrValue');
+            const qrValue = qrInput.value.trim();
+            
+            if (!qrValue) {
+                showStatus('Please enter a value to replace {qrcode}', 'error');
+                return;
+            }
+            
+            // Store original text values to restore later
+            const originalTexts = [];
+            let replacementMade = false;
+            
+            // Find and replace any textbox containing {qrcode}
+            config.textboxes.forEach((textbox, index) => {
+                originalTexts[index] = textbox.text; // Store original
+                if (textbox.text.includes('{qrcode}')) {
+                    textbox.text = textbox.text.replace(/{qrcode}/g, qrValue);
+                    replacementMade = true;
+                }
+            });
+            
+            if (!replacementMade) {
+                showStatus('No {qrcode} placeholder found in text boxes', 'error');
+                return;
+            }
+            
+            // Redraw canvas with updated text
+            drawCanvas();
+            
+            // Show status and print after short delay
+            showStatus(`Printing with "${qrValue}"...`, 'success');
+            
+            setTimeout(() => {
+                printDesign();
+                
+                // Restore original text with {qrcode} placeholders after printing
+                config.textboxes.forEach((textbox, index) => {
+                    textbox.text = originalTexts[index];
+                });
+                
+                // Redraw canvas with restored placeholders
+                drawCanvas();
+                
+                // Clear the input field after printing
+                qrInput.value = '';
+                
+                showStatus('Print completed - {qrcode} placeholders restored', 'success');
+            }, 500);
+        }
+        
+        // Initialize when page loads
+        window.addEventListener('load', init);
+    </script>
+</body>
+</html>
