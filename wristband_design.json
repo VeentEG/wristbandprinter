@@ -1,0 +1,25 @@
+{
+  "imageUrl": "https://dashboard.veent.io/veent.png",
+  "widthMM": 279,
+  "heightMM": 29,
+  "dpi": 96,
+  "image": {
+    "x": 63.11318763009224,
+    "y": 12.06864406779664,
+    "width": 170.3227772821884,
+    "height": 90.328813559322,
+    "scale": 1,
+    "loaded": true
+  },
+  "textboxes": [
+    {
+      "id": "textbox-1",
+      "text": "{qrcode}",
+      "x": 262.58644067796615,
+      "y": 40.19491525423729,
+      "width": 150,
+      "height": 30,
+      "fontSize": 24
+    }
+  ]
+}
