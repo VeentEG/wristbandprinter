@@ -438,7 +438,7 @@
 
             // Regular characters
             if (event.key.length === 1 && !event.ctrlKey && !event.altKey) {
-                currentText += event.key;
+                currentText += event.key.toUpperCase();
                 updateDisplay();
                 showTyping();
             }
